@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IA Multi-Agents</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#080C10;color:#fff;font-family:'Sora',sans-serif;min-height:100vh}
+.orb{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes breathe{0%,100%{transform:scale(1);opacity:.6}50%{transform:scale(1.05);opacity:1}}
+textarea:focus,input:focus{outline:none}
+textarea::placeholder{color:#333}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:#222;border-radius:4px}
+.wrap{max-width:900px;margin:0 auto;padding:40px 20px 80px;position:relative;z-index:1}
+.badge{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:100px;padding:6px 16px;margin-bottom:24px}
+.dot{width:6px;height:6px;border-radius:50%;background:#10B981;box-shadow:0 0 6px #10B981;animation:breathe 2s ease-in-out infinite}
+.badge-text{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:3px;color:#666}
+h1{font-size:clamp(32px,6vw,56px);font-weight:600;letter-spacing:-1px;line-height:1.1;margin-bottom:16px}
+.grad{background:linear-gradient(90deg,#FF6B35,#FF3366,#A855F7,#00D4FF,#10B981);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sub{color:#555;font-size:15px;max-width:400px;margin:0 auto;line-height:1.6;text-align:center}
+.input-box{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:24px;margin:48px 0 32px;transition:border-color .4s}
+.input-box.active{border-color:rgba(168,85,247,.3)}
+textarea{width:100%;background:transparent;border:none;color:#ddd;font-size:15px;line-height:1.7;resize:none;font-family:'Sora',sans-serif}
+.input-footer{display:flex;align-items:center;justify-content:space-between;margin-top:16px;flex-wrap:wrap;gap:12px}
+.hint{font-family:'Space Mono',monospace;font-size:10px;color:#333;letter-spacing:1px}
+.btns{display:flex;gap:10px}
+.btn-reset{background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 20px;color:#666;font-size:13px;cursor:pointer;font-family:'Sora',sans-serif;transition:all .2s}
+.btn-reset:hover{border-color:rgba(255,255,255,.2);color:#999}
+.btn-launch{border:none;border-radius:10px;padding:10px 28px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Sora',sans-serif;transition:all .3s;display:flex;align-items:center;gap:8px}
+.btn-launch.ready{background:linear-gradient(135deg,#7C3AED,#A855F7);box-shadow:0 4px 20px rgba(168,85,247,.4)}
+.btn-launch.disabled{background:rgba(255,255,255,.05);color:#444;cursor:not-allowed}
+.progress{margin-top:16px;height:2px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden}
+.progress-bar{height:100%;background:linear-gradient(90deg,#7C3AED,#A855F7,#10B981);transition:width .5s ease;border-radius:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.card{border-radius:16px;padding:20px;transition:all .5s;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03)}
+.card.done{border-color:var(--agent-border);background:var(--agent-bg)}
+.card-shimmer{position:absolute;inset:0;animation:shimmer 1.5s infinite}
+.card-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .4s;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);color:#555}
+.avatar.active{background:var(--agent-bg2);border-color:var(--agent-color);color:var(--agent-color)}
+.agent-name{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;font-weight:700}
+.agent-role{font-size:11px;color:#666;margin-top:1px}
+.status-dot{width:8px;height:8px;border-radius:50%;margin-left:auto;box-shadow:0 0 8px var(--agent-color)}
+.card-text{font-size:13px;line-height:1.6;min-height:60px;transition:all .4s;color:#444}
+.card-text.done{color:#ccc}
+.card-text.idle{color:#333}
+.fusion-wrap{text-align:center;padding:24px 0 8px}
+.fusion-badge{display:inline-flex;align-items:center;gap:10px;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.2);border-radius:100px;padding:8px 20px}
+.fusion-icon{color:#A855F7;font-size:14px}
+.fusion-icon.spin{animation:spin 1s linear infinite}
+.fusion-label{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:#A855F7}
+.result{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:32px;margin-top:32px;position:relative;overflow:hidden;animation:fadeUp .6s ease forwards}
+.result-glow{position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,107,53,.03),rgba(168,85,247,.03),rgba(16,185,129,.03));pointer-events:none}
+.result-head{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.result-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#FF6B35,#A855F7,#10B981);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 20px rgba(168,85,247,.4)}
+.result-title{font-family:'Space Mono',monospace;font-size:12px;letter-spacing:3px;color:#fff;font-weight:700}
+.result-sub{font-size:11px;color:#666}
+.result-body p{margin-bottom:10px;line-height:1.8;font-size:14px}
+.spinning{display:inline-block;animation:spin 1s linear infinite}
+.pulsing{animation:pulse 1.2s ease-in-out infinite}
+header{text-align:center;margin-bottom:48px}
+</style>
+</head>
+<body>
+<div style="position:fixed;inset:0;pointer-events:none">
+  <div class="orb" style="width:400px;height:400px;background:#FF6B35;left:-100px;top:-100px;opacity:.08"></div>
+  <div class="orb" style="width:500px;height:500px;background:#A855F7;left:60%;top:10%;opacity:.06"></div>
+  <div class="orb" style="width:350px;height:350px;background:#10B981;left:20%;top:70%;opacity:.06"></div>
+  <div class="orb" style="width:300px;height:300px;background:#00D4FF;left:80%;top:60%;opacity:.05"></div>
+</div>
+
+<div class="wrap">
+  <header>
+    <div class="badge">
+      <span class="dot"></span>
+      <span class="badge-text">MULTI-AGENT AI SYSTEM</span>
+    </div>
+    <h1>
+      <span>5 esprits.</span><br/>
+      <span class="grad">Une seule vérité.</span>
+    </h1>
+    <p class="sub">Donne une idée. 5 agents IA l'analysent en parallèle, puis l'Orchestrateur fusionne tout.</p>
+  </header>
+
+  <div class="input-box" id="inputBox">
+    <textarea id="ideaInput" rows="3" placeholder="Décris ton idée ici… ex: une app qui prédit les embouteillages avec l'IA"></textarea>
+    <div class="input-footer">
+      <span class="hint">⌘ + ENTER pour lancer</span>
+      <div class="btns">
+        <button class="btn-reset" id="resetBtn" style="display:none" onclick="resetApp()">↺ Nouvelle idée</button>
+        <button class="btn-launch disabled" id="launchBtn" onclick="launch()">⚡ Lancer les agents</button>
+      </div>
+    </div>
+    <div class="progress" id="progressWrap" style="display:none">
+      <div class="progress-bar" id="progressBar" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div class="grid" id="agentsGrid"></div>
+  <div id="fusionArea"></div>
+  <div id="resultArea"></div>
+</div>
+
+<script>
+const AGENTS = [
+  {id:'creative',name:'CRÉA',role:'Créatif',color:'#FF6B35',bg:'rgba(255,107,53,0.08)',border:'rgba(255,107,53,0.3)',icon:'✦',
+   prompt:i=>`Tu es un agent IA ultra-créatif. Analyse cette idée avec une perspective créative et audacieuse. Propose des angles inattendus et innovants. Sois inspirant. Idée : "${i}". Réponds en 3-4 phrases percutantes en français.`},
+  {id:'analyst',name:'DATA',role:'Analytique',color:'#00D4FF',bg:'rgba(0,212,255,0.08)',border:'rgba(0,212,255,0.3)',icon:'◈',
+   prompt:i=>`Tu es un agent IA analytique. Décompose cette idée en données concrètes : marché cible, faisabilité, métriques clés. Sois précis. Idée : "${i}". Réponds en 3-4 phrases analytiques en français.`},
+  {id:'critic',name:'CRIT',role:'Critique',color:'#FF3366',bg:'rgba(255,51,102,0.08)',border:'rgba(255,51,102,0.3)',icon:'⊘',
+   prompt:i=>`Tu es un agent IA critique. Identifie les failles, risques et points faibles de cette idée. Sois honnête mais constructif. Idée : "${i}". Réponds en 3-4 phrases critiques en français.`},
+  {id:'strategist',name:'STRAT',role:'Stratège',color:'#A855F7',bg:'rgba(168,85,247,0.08)',border:'rgba(168,85,247,0.3)',icon:'◎',
+   prompt:i=>`Tu es un agent IA stratège. Élabore un plan d'action concret : étapes, priorités, timeline. Idée : "${i}". Réponds en 3-4 phrases stratégiques en français.`},
+  {id:'visionary',name:'VISI',role:'Visionnaire',color:'#10B981',bg:'rgba(16,185,129,0.08)',border:'rgba(16,185,129,0.3)',icon:'◉',
+   prompt:i=>`Tu es un agent IA visionnaire. Projette cette idée dans le futur : impact, évolutions, vision dans 10 ans. Idée : "${i}". Réponds en 3-4 phrases futuristes en français.`},
+];
+
+let phase = 'idle';
+
+const ideaInput = document.getElementById('ideaInput');
+const launchBtn = document.getElementById('launchBtn');
+const resetBtn = document.getElementById('resetBtn');
+const progressWrap = document.getElementById('progressWrap');
+const progressBar = document.getElementById('progressBar');
+const inputBox = document.getElementById('inputBox');
+
+ideaInput.addEventListener('input', () => {
+  if(ideaInput.value.trim()) {
+    launchBtn.className = 'btn-launch ready';
+  } else {
+    launchBtn.className = 'btn-launch disabled';
+  }
+});
+
+ideaInput.addEventListener('keydown', e => {
+  if((e.metaKey||e.ctrlKey) && e.key==='Enter') launch();
+});
+
+function renderAgents(statuses, results) {
+  const grid = document.getElementById('agentsGrid');
+  grid.innerHTML = AGENTS.map(a => {
+    const st = statuses[a.id] || 'idle';
+    const res = results[a.id] || '';
+    const isDone = st==='done';
+    const isThinking = st==='thinking';
+    return `<div class="card ${isDone?'done':''}" style="--agent-color:${a.color};--agent-bg:${a.bg};--agent-bg2:${a.bg};--agent-border:${a.border}">
+      ${isThinking?`<div class="card-shimmer" style="background:linear-gradient(135deg,transparent 40%,${a.color}15,transparent 60%)"></div>`:''}
+      <div class="card-head">
+        <div class="avatar ${isDone||isThinking?'active':''}">
+          ${isThinking?`<span class="spinning">◌</span>`:a.icon}
+        </div>
+        <div>
+          <div class="agent-name" style="color:${a.color}">${a.name}</div>
+          <div class="agent-role">${a.role}</div>
+        </div>
+        ${isDone?`<div class="status-dot" style="background:${a.color}"></div>`:''}
+      </div>
+      <div class="card-text ${st}">
+        ${st==='idle'?'En attente…':st==='thinking'?`<span class="pulsing">Analyse en cours…</span>`:res}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function callClaude(prompt) {
+  const r = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+  });
+  const d = await r.json();
+  return d.content?.[0]?.text || 'Erreur.';
+}
+
+const statuses = {};
+const results = {};
+
+async function launch() {
+  const idea = ideaInput.value.trim();
+  if(!idea || phase!=='idle') return;
+  phase = 'running';
+  ideaInput.disabled = true;
+  launchBtn.className = 'btn-launch disabled';
+  launchBtn.innerHTML = '<span class="spinning">◌</span> Analyse…';
+  progressWrap.style.display = 'block';
+  inputBox.classList.add('active');
+  document.getElementById('fusionArea').innerHTML = '';
+  document.getElementById('resultArea').innerHTML = '';
+
+  AGENTS.forEach(a => { statuses[a.id]='thinking'; results[a.id]=''; });
+  renderAgents(statuses, results);
+  setProgress(5);
+
+  let done = 0;
+  await Promise.all(AGENTS.map(async a => {
+    try { results[a.id] = await callClaude(a.prompt(idea)); }
+    catch { results[a.id] = 'Erreur lors de l\'analyse.'; }
+    statuses[a.id] = 'done';
+    done++;
+    setProgress(Math.round(done/AGENTS.length*75));
+    renderAgents(statuses, results);
+  }));
+
+  phase = 'fusion';
+  launchBtn.innerHTML = '<span class="spinning">◌</span> Fusion…';
+  setProgress(85);
+  document.getElementById('fusionArea').innerHTML = `
+    <div class="fusion-wrap">
+      <div class="fusion-badge">
+        <span class="fusion-icon spin">◌</span>
+        <span class="fusion-label">FUSION EN COURS…</span>
+      </div>
+    </div>`;
+
+  const fusionPrompt = `Tu es l'Orchestrateur Suprême, un méta-agent IA qui synthétise le travail de 5 agents.
+Idée : "${idea}"
+- Créatif : ${results.creative}
+- Analytique : ${results.analyst}
+- Critique : ${results.critic}
+- Stratège : ${results.strategist}
+- Visionnaire : ${results.visionary}
+Synthétise en une RÉPONSE FINALE. Structure :
+**Vision d'ensemble** (2 phrases)
+**Points forts & opportunités** (2-3 points)
+**Vigilances importantes** (1-2 risques)
+**Plan d'action recommandé** (3 étapes numérotées)
+**Potentiel futur** (1 phrase finale)
+Sois synthétique et percutant, en français.`;
+
+  let fusion = '';
+  try { fusion = await callClaude(fusionPrompt); }
+  catch { fusion = 'Erreur lors de la fusion.'; }
+
+  setProgress(100);
+  phase = 'done';
+  launchBtn.innerHTML = '✓ Terminé';
+  resetBtn.style.display = 'block';
+
+  document.getElementById('fusionArea').innerHTML = `
+    <div class="fusion-wrap">
+      <div class="fusion-badge">
+        <span class="fusion-icon">◉</span>
+        <span class="fusion-label">SYNTHÈSE COMPLÈTE</span>
+      </div>
+    </div>`;
+
+  const lines = fusion.split('\n').filter(Boolean);
+  const body = lines.map(l => {
+    const clean = l.replace(/\*\*/g,'');
+    const bold = l.startsWith('**') || /^\d+\./.test(l);
+    return `<p style="color:${bold?'#eee':'#aaa'};font-weight:${bold?600:400}">${clean}</p>`;
+  }).join('');
+
+  document.getElementById('resultArea').innerHTML = `
+    <div class="result">
+      <div class="result-glow"></div>
+      <div class="result-head">
+        <div class="result-avatar">⬡</div>
+        <div>
+          <div class="result-title">ORCHESTRATEUR</div>
+          <div class="result-sub">Synthèse unifiée de 5 agents</div>
+        </div>
+      </div>
+      <div class="result-body">${body}</div>
+    </div>`;
+}
+
+function setProgress(v) {
+  progressBar.style.width = v + '%';
+}
+
+function resetApp() {
+  phase = 'idle';
+  ideaInput.value = '';
+  ideaInput.disabled = false;
+  launchBtn.className = 'btn-launch disabled';
+  launchBtn.innerHTML = '⚡ Lancer les agents';
+  resetBtn.style.display = 'none';
+  progressWrap.style.display = 'none';
+  progressBar.style.width = '0%';
+  inputBox.classList.remove('active');
+  document.getElementById('agentsGrid').innerHTML = '';
+  document.getElementById('fusionArea').innerHTML = '';
+  document.getElementById('resultArea').innerHTML = '';
+  AGENTS.forEach(a=>{statuses[a.id]='idle';results[a.id]='';});
+  ideaInput.focus();
+}
+</script>
+</body>
+</html>
